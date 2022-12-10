@@ -1,16 +1,15 @@
 // Compartment in a rucksack
 struct Compartment {
-    inventory: [bool; 52]
+    inventory: [bool; 52],
 }
 
 // Methods of Compartment
 impl Compartment {
-
     // Get index of item
     pub fn get_index(item: u8) -> usize {
         match item {
-            65..=90 => (item - 65 + 26) as usize,       // Upper case
-            97..=122 => (item - 97) as usize,           // Lower case
+            65..=90 => (item - 65 + 26) as usize, // Upper case
+            97..=122 => (item - 97) as usize,     // Lower case
             _ => panic!("Invalid item."),
         }
     }
@@ -31,10 +30,9 @@ impl Compartment {
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
-    
     // Priority sum
     let mut priority_sum: u32 = 0;
-    
+
     // Iterate lines
     for line in input.lines() {
         // Line as bytes for indexing
@@ -44,7 +42,7 @@ pub fn part_one(input: &str) -> Option<u32> {
 
         // First compartment
         let mut compart_one: Compartment = Compartment {
-            inventory: [false; 52]
+            inventory: [false; 52],
         };
 
         // Iterate and store into first compartment
@@ -66,8 +64,40 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(priority_sum)
 }
 
+// Loads items into compartment
+fn load_compartment(line: &str) -> Compartment {
+    let mut compart: Compartment = Compartment {
+        inventory: [false; 52],
+    };
+
+    for c in line.bytes() {
+        compart.insert(c);
+    }
+
+    compart
+}
+
 pub fn part_two(input: &str) -> Option<u32> {
-    None
+    // Priority sum
+    let mut priority_sum: u32 = 0;
+    // Lines iterator
+    let mut lines = input.lines().peekable();
+
+    while lines.peek().is_some() {
+        // Compartments
+        let compart_one: Compartment = load_compartment(lines.next().unwrap());
+        let compart_two: Compartment = load_compartment(lines.next().unwrap());
+
+        // Iterate last compartment items
+        for c in lines.next().unwrap().bytes() {
+            if compart_one.exists(c) && compart_two.exists(c) {
+                priority_sum += (Compartment::get_index(c) as u32) + 1;
+                break;
+            }
+        }
+    }
+
+    Some(priority_sum)
 }
 
 fn main() {
@@ -89,6 +119,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 3);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(70));
     }
 }
