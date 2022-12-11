@@ -33,8 +33,10 @@ fn parse_stacks(crates_input: &str) -> Vec<LinkedList<u8>> {
     stack_model
 }
 
-// Move crates
-fn move_crates(moves_input: &str, stack_model: &mut [LinkedList<u8>]) {
+// ----------------------------------------------------------------------------
+
+// Move crates for part one
+fn move_one(moves_input: &str, stack_model: &mut [LinkedList<u8>]) {
     // Iterate crate moves
     for line in moves_input.lines() {
         // Split into words
@@ -61,8 +63,8 @@ pub fn part_one(input: &str) -> Option<String> {
 
     // Generate stack model
     let mut stack_model: Vec<LinkedList<u8>> = parse_stacks(input_split[0]);
-    // Move crates according to instructions
-    move_crates(input_split[1], &mut stack_model);
+    // Move crates according to part one instructions
+    move_one(input_split[1], &mut stack_model);
 
     // Get crates at top
     let mut top_crates: String = String::new();
@@ -73,9 +75,54 @@ pub fn part_one(input: &str) -> Option<String> {
     Some(top_crates)
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    None
+// ----------------------------------------------------------------------------
+
+// Move crates for part two
+fn move_two(moves_input: &str, stack_model: &mut [LinkedList<u8>]) {
+    // Iterate crate moves
+    for line in moves_input.lines() {
+        // Split into words
+        let tokens: Vec<&str> = line.split_whitespace().collect();
+
+        // Number of crates to move
+        let num_crates: u8 = tokens[1].parse::<u8>().unwrap();
+        // Source stack
+        let src_stack: usize = tokens[3].parse::<usize>().unwrap() - 1;
+        // Destination stack
+        let dst_stack: usize = tokens[5].parse::<usize>().unwrap() - 1;
+
+        // Move crates
+        let mut moved_crates: LinkedList<u8> = LinkedList::new();
+        for _ in 0..num_crates {
+            let c: u8 = stack_model[src_stack].pop_back().unwrap();
+            moved_crates.push_back(c);
+        }
+        for _ in 0..num_crates {
+            let c: u8 = moved_crates.pop_back().unwrap();
+            stack_model[dst_stack].push_back(c);
+        }
+    }
 }
+
+pub fn part_two(input: &str) -> Option<String> {
+    // Split crates drawing and move instructions
+    let input_split: Vec<&str> = input.split("\n\n").collect();
+
+    // Generate stack model
+    let mut stack_model: Vec<LinkedList<u8>> = parse_stacks(input_split[0]);
+    // Move crates according to part two instructions
+    move_two(input_split[1], &mut stack_model);
+
+    // Get crates at top
+    let mut top_crates: String = String::new();
+    for stack in &stack_model {
+        top_crates.push(*stack.back().unwrap() as char);
+    }
+
+    Some(top_crates)
+}
+
+// ----------------------------------------------------------------------------
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 5);
@@ -96,6 +143,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 5);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some("MCD".to_string()));
     }
 }
