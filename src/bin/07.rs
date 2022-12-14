@@ -20,7 +20,7 @@ impl Directory {
 
 // ----------------------------------------------------------------------------
 
-pub fn part_one(input: &str) -> Option<u64> {
+fn generate_fs(input: &str) -> VecDeque<Directory> {
     // Stores the filesystem structure with only sizes
     let mut filesystem: VecDeque<Directory> = VecDeque::new();
 
@@ -59,7 +59,7 @@ pub fn part_one(input: &str) -> Option<u64> {
                 }
             }
         } else if command_type.starts_with("ls") {
-            // Ensures that if "ls" output is not double counted
+            // Ensures that "ls" output is not double counted
             if filesystem[curr_position].subdirs.is_none() {
                 // If "ls" output is not empty
                 if command_vec.len() != 1 {
@@ -116,6 +116,15 @@ pub fn part_one(input: &str) -> Option<u64> {
         }
     }
 
+    filesystem
+}
+
+// ----------------------------------------------------------------------------
+
+pub fn part_one(input: &str) -> Option<u64> {
+    // Filesystem as Vector of Directories
+    let filesystem: VecDeque<Directory> = generate_fs(input);
+
     // Calculate sum of sizes < 100000
     let mut total_size: u64 = 0;
     for d in filesystem.iter() {
@@ -137,8 +146,27 @@ pub fn part_one(input: &str) -> Option<u64> {
     Some(total_size)
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u64> {
+    // Filesystem as Vector of Directories
+    let filesystem: VecDeque<Directory> = generate_fs(input);
+
+    // Total capacity of disk
+    let capacity: u64 = 70000000;
+    // Needed space
+    let req_space: u64 = 30000000;
+    // Current used space
+    let used_space: u64 = capacity - filesystem[0].size;
+
+    // Track min dir size
+    let mut min_size: u64 = u64::MAX;
+    for d in filesystem.iter() {
+        // If deleting dir is gives enough space, and dir is a new minimum
+        if (used_space + d.size >= req_space) && (d.size < min_size) {
+            min_size = d.size;
+        }
+    }
+
+    Some(min_size)
 }
 
 fn main() {
@@ -160,6 +188,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 7);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(24933642));
     }
 }
