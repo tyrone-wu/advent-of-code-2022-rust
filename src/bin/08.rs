@@ -11,6 +11,8 @@ fn generate_map(input: &str) -> Vec<Vec<u8>> {
     map
 }
 
+// ----------------------------------------------------------------------------
+
 // If tree is visible
 fn is_visible(map: &[Vec<u8>], (x, y): (usize, usize)) -> bool {
     // Bottom
@@ -67,9 +69,66 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(vis_trees)
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+// ----------------------------------------------------------------------------
+
+// Calculates scenic score of tree
+fn scenic_score(map: &[Vec<u8>], (x, y): (usize, usize)) -> u32 {
+    // Bottom
+    let mut bottom: u32 = 0;
+    for i in (x + 1)..map.len() {
+        bottom += 1;
+        if map[x][y] <= map[i][y] {
+            break;
+        }
+    }
+    // Top
+    let mut top: u32 = 0;
+    for i in (0..x).rev() {
+        top += 1;
+        if map[x][y] <= map[i][y] {
+            break;
+        }
+    }
+    // Right
+    let mut right: u32 = 0;
+    for i in (y + 1)..map[0].len() {
+        right += 1;
+        if map[x][y] <= map[x][i] {
+            break;
+        }
+    }
+    // Left
+    let mut left: u32 = 0;
+    for i in (0..y).rev() {
+        left += 1;
+        if map[x][y] <= map[x][i] {
+            break;
+        }
+    }
+
+    bottom * top * right * left
 }
+
+pub fn part_two(input: &str) -> Option<u32> {
+    // Input to 2d array
+    let map: Vec<Vec<u8>> = generate_map(input);
+    // Track max scenic score
+    let mut max_score: u32 = 0;
+
+    // Iterate over each tree in map except edges
+    for x in 1..(map.len() - 1) {
+        for y in 1..(map[0].len() - 1) {
+            let score: u32 = scenic_score(&map, (x, y));
+            if max_score < score {
+                max_score = score;
+            }
+        }
+    }
+
+    Some(max_score)
+}
+
+// ----------------------------------------------------------------------------
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 8);
@@ -90,6 +149,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 8);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(8));
     }
 }
