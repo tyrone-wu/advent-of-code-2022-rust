@@ -25,39 +25,8 @@ fn parse_instructions(instr: &str) -> IResult<&str, Vec<(&str, u8)>> {
 
 // ----------------------------------------------------------------------------
 
-fn move_knot(
-    (dir, steps): (&str, u8),
-    visited_coord: &mut HashSet<(i32, i32)>,
-    head: &mut (i32, i32),
-    mut tail: (i32, i32),
-) -> (i32, i32) {
-    // Perform moves
-    for _ in 0..steps {
-        let head_prev_loc: (i32, i32) = *head;
-
-        // Move head a single step
-        match dir {
-            "U" => head.1 += 1,
-            "D" => head.1 -= 1,
-            "R" => head.0 += 1,
-            "L" => head.0 -= 1,
-            _ => panic!("Invalid direction: {dir}"),
-        }
-
-        // Check if tail needs to move
-        if tail.0.abs_diff(head.0) > 1 || tail.1.abs_diff(head.1) > 1 {
-            tail = head_prev_loc;
-            visited_coord.insert(tail);
-        }
-    }
-
-    tail
-}
-
-// ----------------------------------------------------------------------------
-
 pub fn part_one(input: &str) -> Option<usize> {
-    // Track current coordinate of the tail
+    // Track current coordinate of head and tail
     let mut head_coord: (i32, i32) = (0, 0);
     let mut tail_coord: (i32, i32) = (0, 0);
 
@@ -68,15 +37,80 @@ pub fn part_one(input: &str) -> Option<usize> {
     // Parse list of move instrucitons
     let (_, instructions): (&str, Vec<(&str, u8)>) = parse_instructions(input).unwrap();
 
-    for instr in instructions {
-        tail_coord = move_knot(instr, &mut visited_coord, &mut head_coord, tail_coord);
+    for (dir, steps) in instructions {
+        // Perform moves
+        for _ in 0..steps {
+            let head_prev_loc: (i32, i32) = head_coord;
+
+            // Move head a single step
+            match dir {
+                "U" => head_coord.1 += 1,
+                "D" => head_coord.1 -= 1,
+                "R" => head_coord.0 += 1,
+                "L" => head_coord.0 -= 1,
+                _ => panic!("Invalid direction: {dir}"),
+            }
+
+            // Check if tail needs to move
+            if tail_coord.0.abs_diff(head_coord.0) > 1 || tail_coord.1.abs_diff(head_coord.1) > 1 {
+                tail_coord = head_prev_loc;
+                visited_coord.insert(tail_coord);
+            }
+        }
     }
 
     Some(visited_coord.len())
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<usize> {
+    // Track coordinates of rope
+    let mut rope: [(i32, i32); 10] = [(0, 0); 10];
+
+    // Track visited coordinates for the tail
+    let mut visited_coord: HashSet<(i32, i32)> = HashSet::new();
+    visited_coord.insert((0, 0));
+
+    // Parse list of move instrucitons
+    let (_, instructions): (&str, Vec<(&str, u8)>) = parse_instructions(input).unwrap();
+
+    for (dir, steps) in instructions {
+        // Perform moves
+        for _ in 0..steps {
+            // Move head a single step
+            match dir {
+                "U" => rope[0].1 += 1,
+                "D" => rope[0].1 -= 1,
+                "R" => rope[0].0 += 1,
+                "L" => rope[0].0 -= 1,
+                _ => panic!("Invalid direction: {dir}"),
+            }
+
+            // Move knots
+            for i in 1..rope.len() {
+                // Types of gap closers
+                if rope[i].0.abs_diff(rope[i - 1].0) > 1 && rope[i].1 == rope[i - 1].1 {
+                    // Move x axis
+                    rope[i].0 += (rope[i - 1].0 - rope[i].0).signum();
+                } else if rope[i].0 == rope[i - 1].0 && rope[i].1.abs_diff(rope[i - 1].1) > 1 {
+                    // Move y axis
+                    rope[i].1 += (rope[i - 1].1 - rope[i].1).signum();
+                } else if (rope[i].0.abs_diff(rope[i - 1].0) + rope[i].1.abs_diff(rope[i - 1].1))
+                    > 2
+                {
+                    // Diagonal move
+                    rope[i].0 += (rope[i - 1].0 - rope[i].0).signum();
+                    rope[i].1 += (rope[i - 1].1 - rope[i].1).signum();
+                } else {
+                    break;
+                }
+            }
+
+            // Add tail coordinate
+            visited_coord.insert(rope[9]);
+        }
+    }
+
+    Some(visited_coord.len())
 }
 
 fn main() {
@@ -97,7 +131,10 @@ mod tests {
 
     #[test]
     fn test_part_two() {
-        let input = advent_of_code::read_file("examples", 9);
-        assert_eq!(part_two(&input), None);
+        let input_one = advent_of_code::read_file("examples", 9);
+        assert_eq!(part_two(&input_one), Some(1));
+
+        let input_two: &str = "R 5\nU 8\nL 8\nD 3\nR 17\nD 10\nL 25\nU 20";
+        assert_eq!(part_two(input_two), Some(36));
     }
 }
