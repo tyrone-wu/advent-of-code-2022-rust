@@ -10,29 +10,29 @@ use nom::{
 
 //  Monkey operation
 struct Operation {
-    left: u32,
+    left: u64,
     op: char,
-    right: u32,
+    right: u64,
 }
 
 // Monkey throw condition
 struct Test {
-    div_by: u32,
+    div_by: u64,
     true_throw: usize,
     false_throw: usize,
 }
 
 // stinky monke
 struct Monkey {
-    items: VecDeque<u32>,
+    items: VecDeque<u64>,
     operation: Operation,
     test: Test,
-    inspect_count: u32,
+    inspect_count: u64,
 }
 
 impl Monkey {
     // Perform basic arithmetic operation
-    fn perform_operation(left: u32, op: char, right: u32) -> u32 {
+    fn perform_operation(left: u64, op: char, right: u64) -> u64 {
         match op {
             '+' => left + right,
             '-' => left - right,
@@ -43,16 +43,16 @@ impl Monkey {
     }
 
     // Inspect item
-    fn inspect(&mut self, relief: u32) -> u32 {
+    fn inspect(&mut self, relief: u64) -> u64 {
         // Inspect item
-        let mut worry: u32 = self.items.pop_front().unwrap();
+        let mut worry: u64 = self.items.pop_front().unwrap();
 
-        let left: u32 = if self.operation.left == 0 {
+        let left: u64 = if self.operation.left == 0 {
             worry
         } else {
             self.operation.left
         };
-        let right: u32 = if self.operation.right == 0 {
+        let right: u64 = if self.operation.right == 0 {
             worry
         } else {
             self.operation.right
@@ -60,26 +60,24 @@ impl Monkey {
         worry = Monkey::perform_operation(left, self.operation.op, right);
 
         // Relief check
-        worry = Monkey::perform_operation(worry, '/', relief);
-
-        worry
+        worry / relief
     }
 
     // Receive item
-    fn receive_item(&mut self, item: u32) {
+    fn receive_item(&mut self, item: u64) {
         self.items.push_back(item);
     }
 }
 
 // Monkey inspect and throw
-fn inspect_throw_items(monkeys: &mut [Monkey], curr_idx: usize) {
+fn inspect_throw_items(monkeys: &mut [Monkey], curr_idx: usize, relief: u64, reset: u64) {
     // Update inspect count
-    monkeys[curr_idx].inspect_count += monkeys[curr_idx].items.len() as u32;
+    monkeys[curr_idx].inspect_count += monkeys[curr_idx].items.len() as u64;
 
     // Inspect and throw all items
     while !monkeys[curr_idx].items.is_empty() {
         // New worry level
-        let new: u32 = monkeys[curr_idx].inspect(3);
+        let new: u64 = monkeys[curr_idx].inspect(relief) % reset;
 
         // Test condition of where to throw item
         let cond: &Test = &monkeys[curr_idx].test;
@@ -94,10 +92,10 @@ fn inspect_throw_items(monkeys: &mut [Monkey], curr_idx: usize) {
 // ----------------------------------------------------------------------------
 
 // Parse starting items of monkey
-fn parse_start_items(input: &str) -> IResult<&str, VecDeque<u32>> {
+fn parse_start_items(input: &str) -> IResult<&str, VecDeque<u64>> {
     let (input, items) = delimited(
         tag("  Starting items: "),                 // Discard matching text
-        separated_list1(tag(", "), complete::u32), // Get space separated u32 as Vec
+        separated_list1(tag(", "), complete::u64), // Get space separated u64 as Vec
         newline,                                   // Discard newline
     )(input)?;
 
@@ -131,13 +129,13 @@ fn parse_operation(input: &str) -> IResult<&str, Operation> {
             left: if left == "old" {
                 0
             } else {
-                left.parse::<u32>().unwrap()
+                left.parse::<u64>().unwrap()
             },
             op,
             right: if right == "old" {
                 0
             } else {
-                right.parse::<u32>().unwrap()
+                right.parse::<u64>().unwrap()
             },
         },
     ))
@@ -148,7 +146,7 @@ fn parse_test(input: &str) -> IResult<&str, Test> {
     // Parse divide by line
     let (input, div_by) = delimited(
         tag("  Test: divisible by "), // Discard text
-        complete::u32,                // Match u32
+        complete::u64,                // Match u64
         newline,                      // Discard newline
     )(input)?;
 
@@ -205,23 +203,44 @@ fn parse_monkey_list(input: &str) -> IResult<&str, Vec<Monkey>> {
 
 // ----------------------------------------------------------------------------
 
-pub fn part_one(input: &str) -> Option<u32> {
+pub fn part_one(input: &str) -> Option<u64> {
     let (_, mut monkey_vec) = parse_monkey_list(input).unwrap();
+
+    let mut reset: u64 = 1;
+    for d in monkey_vec.iter() {
+        reset *= d.test.div_by;
+    }
 
     // 20 rounds
     for _ in 0..20 {
         // Each monke
         for m in 0..monkey_vec.len() {
-            inspect_throw_items(&mut monkey_vec, m);
+            inspect_throw_items(&mut monkey_vec, m, 3, reset);
         }
     }
 
-    let mut monkey_business: BinaryHeap<u32> = monkey_vec.iter().map(|m| m.inspect_count).collect();
+    let mut monkey_business: BinaryHeap<u64> = monkey_vec.iter().map(|m| m.inspect_count).collect();
     Some(monkey_business.pop().unwrap() * monkey_business.pop().unwrap())
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u64> {
+    let (_, mut monkey_vec) = parse_monkey_list(input).unwrap();
+
+    let mut reset_mod: u64 = 1;
+    for d in monkey_vec.iter() {
+        reset_mod *= d.test.div_by;
+    }
+
+    // 10000 rounds
+    for _ in 0..10000 {
+        // Each monke
+        for m in 0..monkey_vec.len() {
+            inspect_throw_items(&mut monkey_vec, m, 1, reset_mod);
+        }
+    }
+
+    let mut monkey_business: BinaryHeap<u64> = monkey_vec.iter().map(|m| m.inspect_count).collect();
+    Some(monkey_business.pop().unwrap() * monkey_business.pop().unwrap())
 }
 
 // ----------------------------------------------------------------------------
@@ -245,6 +264,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 11);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(2713310158));
     }
 }
