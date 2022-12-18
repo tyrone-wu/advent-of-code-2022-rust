@@ -18,14 +18,17 @@ fn is_neighbor(mut curr_node: u8, mut other_node: u8) -> bool {
 }
 
 // Parse map into adjacency list; find start and end node
-fn generate_adjacency_list(input: &str) -> (Vec<LinkedList<usize>>, usize, usize) {
+fn generate_adjacency_list(
+    input: &str,
+    part_two: bool,
+) -> (Vec<LinkedList<usize>>, Vec<usize>, usize) {
     // 2D vector of chars
     let map: Vec<Vec<u8>> = input.lines().map(|line| line.bytes().collect()).collect();
     // Adjacency list
     let mut adj_list: Vec<LinkedList<usize>> = Vec::with_capacity(map.len() * map[0].len());
 
-    // Start node
-    let mut start: usize = 0;
+    // Start nodes
+    let mut starts: Vec<usize> = Vec::new();
     // End node
     let mut end: usize = 0;
 
@@ -34,9 +37,9 @@ fn generate_adjacency_list(input: &str) -> (Vec<LinkedList<usize>>, usize, usize
             // Edge list for node (i,j)
             let mut edges: LinkedList<usize> = LinkedList::new();
 
-            if map[i][j] == b'S' {
+            if map[i][j] == b'S' || (part_two && map[i][j] == b'a') {
                 // Set starting node
-                start = adj_list.len();
+                starts.push(adj_list.len());
             } else if map[i][j] == b'E' {
                 // End starting node
                 end = adj_list.len();
@@ -64,7 +67,7 @@ fn generate_adjacency_list(input: &str) -> (Vec<LinkedList<usize>>, usize, usize
         }
     }
 
-    (adj_list, start, end)
+    (adj_list, starts, end)
 }
 
 // Get shorest path from S to E using Dijkstra's algorithm
@@ -72,11 +75,12 @@ fn shortest_distance_dijkstra(
     adj_list: &[LinkedList<usize>],
     start: usize,
     end: usize,
-) -> (Vec<u32>, Vec<Option<usize>>, Option<u32>) {
+) -> Option<u32> {
+    // (Vec<u32>, Vec<Option<usize>>, Option<u32>) {
     // Keep track of visitied nodes
     let mut nodes_visited: Vec<bool> = vec![false; adj_list.len()];
-    // Keep track of previous nodes taken to our node of interest
-    let mut prev_nodes: Vec<Option<usize>> = vec![None; adj_list.len()];
+    // // Keep track of previous nodes taken to our node of interest
+    // let mut prev_nodes: Vec<Option<usize>> = vec![None; adj_list.len()];
 
     // Distance array from start node to every other node
     let mut dist_nodes: Vec<u32> = vec![u32::MAX; adj_list.len()];
@@ -110,8 +114,8 @@ fn shortest_distance_dijkstra(
             if new_dist < dist_nodes[*e_node] {
                 // Set new distance to the node
                 dist_nodes[*e_node] = new_dist;
-                // Update path for the node to take
-                prev_nodes[*e_node] = Some(node);
+                // // Update path for the node to take
+                // prev_nodes[*e_node] = Some(node);
                 // Add node to priority queue
                 pq.push((u32::MAX - new_dist, *e_node));
             }
@@ -120,26 +124,40 @@ fn shortest_distance_dijkstra(
         // Return early if end node is reached
         if node == end {
             let shortest_dist: u32 = dist_nodes[end];
-            return (dist_nodes, prev_nodes, Some(shortest_dist));
+            // return (dist_nodes, prev_nodes, Some(shortest_dist));
+            return Some(shortest_dist);
         }
     }
 
-    (dist_nodes, prev_nodes, None)
-}
-
-pub fn part_one(input: &str) -> Option<u32> {
-    let (adj_list, start, end): (Vec<LinkedList<usize>>, usize, usize) =
-        generate_adjacency_list(input);
-
-    let (_, _, shortest_dist): (Vec<u32>, Vec<Option<usize>>, Option<u32>) =
-        shortest_distance_dijkstra(&adj_list, start, end);
-
-    shortest_dist
-}
-
-pub fn part_two(_input: &str) -> Option<u32> {
+    // (dist_nodes, prev_nodes, None)
     None
 }
+
+// ----------------------------------------------------------------------------
+
+pub fn part_one(input: &str) -> Option<u32> {
+    let (adj_list, starts, end): (Vec<LinkedList<usize>>, Vec<usize>, usize) =
+        generate_adjacency_list(input, false);
+
+    // let (_, _, shortest_dist): (Vec<u32>, Vec<Option<usize>>, Option<u32>) =
+    //     shortest_distance_dijkstra(&adj_list, starts[0], end);
+
+    shortest_distance_dijkstra(&adj_list, starts[0], end)
+}
+
+pub fn part_two(input: &str) -> Option<u32> {
+    let (adj_list, starts, end): (Vec<LinkedList<usize>>, Vec<usize>, usize) =
+        generate_adjacency_list(input, true);
+
+    let mut distances: Vec<u32> = Vec::with_capacity(starts.len());
+    for s in starts {
+        distances.push(shortest_distance_dijkstra(&adj_list, s, end).unwrap_or(u32::MAX));
+    }
+
+    distances.iter().min().copied()
+}
+
+// ----------------------------------------------------------------------------
 
 fn main() {
     let input = &advent_of_code::read_file("inputs", 12);
@@ -160,6 +178,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 12);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(29));
     }
 }
