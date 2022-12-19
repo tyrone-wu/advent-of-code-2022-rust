@@ -9,6 +9,8 @@ use nom::{
 
 use std::cmp;
 
+// ----------------------------------------------------------------------------
+
 #[derive(PartialEq, Eq)]
 enum Packet {
     Integer(u8),
@@ -35,6 +37,8 @@ impl PartialOrd for Packet {
         Some(self.cmp(other))
     }
 }
+
+// ----------------------------------------------------------------------------
 
 // Parse packet
 fn parse_packet(input: &str) -> IResult<&str, Packet> {
@@ -87,8 +91,22 @@ pub fn part_one(input: &str) -> Option<usize> {
     )
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<usize> {
+    let (_, pairs): (&str, Vec<(Packet, Packet)>) = parse_pairs_list(input).unwrap();
+    let mut packet_vec: Vec<&Packet> = pairs.iter().flat_map(|(l, r)| vec![l, r]).collect();
+
+    // Divider packets
+    let divider_two: Packet = Packet::List(vec![Packet::List(vec![Packet::Integer(2)])]);
+    packet_vec.push(&divider_two);
+    let divider_six: Packet = Packet::List(vec![Packet::List(vec![Packet::Integer(6)])]);
+    packet_vec.push(&divider_six);
+
+    // Sort and find indices of divider packets
+    packet_vec.sort();
+    let d_two_idx: usize = packet_vec.iter().position(|&p| p == &divider_two).unwrap() + 1;
+    let d_six_idx: usize = packet_vec.iter().position(|&p| p == &divider_six).unwrap() + 1;
+
+    Some(d_two_idx * d_six_idx)
 }
 
 fn main() {
@@ -110,6 +128,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 13);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(140));
     }
 }
