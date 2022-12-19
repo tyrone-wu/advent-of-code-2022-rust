@@ -22,9 +22,13 @@ impl Ord for Packet {
     // Ways for ordering two Packets
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         match (self, other) {
+            // Directly compare ints
             (Packet::Integer(l), Packet::Integer(r)) => l.cmp(r),
+            // Wrap int in vec of Packet and recursively compare
             (Packet::Integer(l), Packet::List(r)) => vec![Packet::Integer(*l)].cmp(r),
+            // Wrap int in vec of Packet and recursively compare
             (Packet::List(l), Packet::Integer(r)) => l.cmp(&vec![Packet::Integer(*r)]),
+            // Compare vecs of packets
             (Packet::List(l), Packet::List(r)) => l.cmp(r),
         }
     }
@@ -43,9 +47,10 @@ impl PartialOrd for Packet {
 // Parse packet
 fn parse_packet(input: &str) -> IResult<&str, Packet> {
     let (input, packet) = alt((
-        complete::u8.map(Packet::Integer), // Match Integer variant
+        // Match Integer variant
+        complete::u8.map(Packet::Integer),
+        // Match inside contents of "[]"
         delimited(
-            // Match inside contents of "[]"
             tag("["), // Discard '['
             separated_list0(
                 tag(","),     // Discard ','
@@ -75,20 +80,86 @@ fn parse_pairs_list(input: &str) -> IResult<&str, Vec<(Packet, Packet)>> {
 
 // ----------------------------------------------------------------------------
 
+// Same as comparator but in funciton form to get more understanding
+fn order_type(left: &Packet, right: &Packet) -> String {
+    match (&left, &right) {
+        // Directly compare integers
+        (Packet::Integer(l), Packet::Integer(r)) =>
+        {
+            #[allow(clippy::comparison_chain)]
+            if l < r {
+                String::from("Less")
+            } else if l == r {
+                String::from("Equal")
+            } else {
+                String::from("Greater")
+            }
+        }
+        // Wrap int in vec of Packet and recursively call fn
+        (Packet::Integer(l), Packet::List(_)) => {
+            order_type(&Packet::List(vec![Packet::Integer(*l)]), right)
+        }
+        // Wrap int in vec of Packet and recursively call fn
+        (Packet::List(_), Packet::Integer(r)) => {
+            order_type(left, &Packet::List(vec![Packet::Integer(*r)]))
+        }
+        // Iterate both vecs and recursively call fn
+        (Packet::List(l), Packet::List(r)) => {
+            // Iterate left and right
+            let mut l_it = l.iter().peekable();
+            let mut r_it = r.iter().peekable();
+
+            while l_it.peek().is_some() && r_it.peek().is_some() {
+                let order_type: String = order_type(l_it.next().unwrap(), r_it.next().unwrap());
+                if order_type != "Equal" {
+                    return order_type;
+                }
+            }
+
+            if l_it.peek().is_none() && r_it.peek().is_some() {
+                // Left finishes first
+                String::from("Less")
+            } else if l_it.peek().is_none() && r_it.peek().is_none() {
+                // Both finish same time
+                String::from("Equal")
+            } else {
+                // Rgiht finishes first
+                String::from("Greater")
+            }
+        }
+    }
+}
+
 pub fn part_one(input: &str) -> Option<usize> {
     // Get vector of pairs
     let (_, pairs): (&str, Vec<(Packet, Packet)>) = parse_pairs_list(input).unwrap();
 
-    Some(
-        pairs
-            .iter()
-            .enumerate()
-            .map(|(i, (l, r))| match l.cmp(r) {
-                cmp::Ordering::Less => i + 1,
-                _ => 0,
-            })
-            .sum::<usize>(),
-    )
+    let fn_sum: usize = pairs
+        .iter()
+        .enumerate()
+        .map(
+            |(i, (l, r))| {
+                if order_type(l, r) == "Less" {
+                    i + 1
+                } else {
+                    0
+                }
+            },
+        )
+        .sum::<usize>();
+
+    let cmp_sum: usize = pairs
+        .iter()
+        .enumerate()
+        .map(|(i, (l, r))| match l.cmp(r) {
+            cmp::Ordering::Less => i + 1,
+            _ => 0,
+        })
+        .sum::<usize>();
+
+    assert_eq!(fn_sum, cmp_sum);
+
+    Some(cmp_sum)
 }
 
 pub fn part_two(input: &str) -> Option<usize> {
