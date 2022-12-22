@@ -79,42 +79,55 @@ fn get_deepest_level(map: &HashSet<(u16, u8)>) -> u8 {
 }
 
 // Drops sand from spawn location and returns point at rest
-fn drop_sand(map: &mut HashSet<(u16, u8)>, mut sand_coord: (u16, u8), deepest_y: &u8) -> bool {
-    // If sand is at the deepest level
-    if sand_coord.1 >= *deepest_y {
+fn drop_sand(
+    map: &mut HashSet<(u16, u8)>,
+    mut sand_coord: (u16, u8),
+    deepest_y: u8,
+    part_two: bool,
+) -> bool {
+    // If sand is at the deepest level; part one
+    if !part_two && sand_coord.1 >= deepest_y {
         return false;
     }
 
-    // Sand fall rules
-    // Down
-    if !map.contains(&(sand_coord.0, sand_coord.1 + 1)) {
-        // Update sand coord
-        sand_coord.1 += 1;
+    // Sand falling rules
+    // If executing part one or sand hits the floor
+    if !part_two || sand_coord.1 + 1 < deepest_y + 2 {
+        // Down
+        if !map.contains(&(sand_coord.0, sand_coord.1 + 1)) {
+            // Update sand coord
+            sand_coord.1 += 1;
 
-        // Drop sand on next step until it rests or is at the deepest level
-        drop_sand(map, sand_coord, deepest_y)
-    }
-    // Down left
-    else if !map.contains(&(sand_coord.0 - 1, sand_coord.1 + 1)) {
-        // Update sand coord
-        sand_coord.0 -= 1;
-        sand_coord.1 += 1;
+            // Drop sand on next step until it rests or is at the deepest level
+            return drop_sand(map, sand_coord, deepest_y, part_two);
+        }
+        // Down left
+        else if !map.contains(&(sand_coord.0 - 1, sand_coord.1 + 1)) {
+            // Update sand coord
+            sand_coord.0 -= 1;
+            sand_coord.1 += 1;
 
-        // Drop sand on next step until it rests or is at the deepest level
-        drop_sand(map, sand_coord, deepest_y)
-    }
-    // Down right
-    else if !map.contains(&(sand_coord.0 + 1, sand_coord.1 + 1)) {
-        // Update sand coord
-        sand_coord.0 += 1;
-        sand_coord.1 += 1;
+            // Drop sand on next step until it rests or is at the deepest level
+            return drop_sand(map, sand_coord, deepest_y, part_two);
+        }
+        // Down right
+        else if !map.contains(&(sand_coord.0 + 1, sand_coord.1 + 1)) {
+            // Update sand coord
+            sand_coord.0 += 1;
+            sand_coord.1 += 1;
 
-        // Drop sand on next step until it rests or is at the deepest level
-        drop_sand(map, sand_coord, deepest_y)
-    } else {
-        // Add sand to map if can't fall anymore
-        map.insert(sand_coord)
+            // Drop sand on next step until it rests or is at the deepest level
+            return drop_sand(map, sand_coord, deepest_y, part_two);
+        }
     }
+
+    // If sand is at rest and is at spawn; part two
+    if part_two && sand_coord == SAND_SPAWN {
+        return false;
+    }
+
+    // Add sand to map if can't fall anymore
+    map.insert(sand_coord)
 }
 
 // Sand spawn location
@@ -131,15 +144,29 @@ pub fn part_one(input: &str) -> Option<u16> {
     let mut sand_count: u16 = 0;
 
     // Drop sand until it reaches deepest level
-    while drop_sand(&mut map, SAND_SPAWN, &deepest_level) {
+    while drop_sand(&mut map, SAND_SPAWN, deepest_level, false) {
         sand_count += 1;
     }
 
     Some(sand_count)
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u16> {
+    // Generate the Set of points on the map
+    let (_, ranges): (&str, Vec<Vec<(u16, u8)>>) = parse_ranges(input).unwrap();
+    let mut map: HashSet<(u16, u8)> = generate_map(ranges);
+
+    // Deepest y level
+    let deepest_level: u8 = get_deepest_level(&map);
+    // Track number of sands placed
+    let mut sand_count: u16 = 0;
+
+    // Drop sand until it reaches deepest level
+    while drop_sand(&mut map, SAND_SPAWN, deepest_level, true) {
+        sand_count += 1;
+    }
+
+    Some(sand_count + 1)
 }
 
 fn main() {
@@ -161,6 +188,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 14);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(93));
     }
 }
