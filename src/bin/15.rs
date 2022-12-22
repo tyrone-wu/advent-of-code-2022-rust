@@ -1,8 +1,127 @@
-pub fn part_one(input: &str) -> Option<u32> {
-    None
+use std::collections::BTreeSet;
+
+use nom::{
+    bytes::complete::tag,
+    character::complete::{self, newline},
+    multi::separated_list1,
+    sequence::separated_pair,
+    IResult,
+};
+
+// So that clippy doesn't give me type_complexity warning
+struct Coordinate {
+    x: i32,
+    y: i32,
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
+// Parse a sensor and a beacon
+fn parse_sensor_beacon(input: &str) -> IResult<&str, (Coordinate, Coordinate)> {
+    let (input, _) = tag("Sensor at x=")(input)?;
+    let (input, s_coord) = separated_pair(complete::i32, tag(", y="), complete::i32)(input)?;
+    let (input, _) = tag(": closest beacon is at x=")(input)?;
+    let (input, b_coord) = separated_pair(complete::i32, tag(", y="), complete::i32)(input)?;
+
+    Ok((
+        input,
+        (
+            Coordinate {
+                x: s_coord.0,
+                y: s_coord.1,
+            },
+            Coordinate {
+                x: b_coord.0,
+                y: b_coord.1,
+            },
+        ),
+    ))
+}
+
+// Parse sensors and their closest beacons
+fn parse_sb_list(input: &str) -> IResult<&str, Vec<(Coordinate, Coordinate)>> {
+    let (input, scans) = separated_list1(newline, parse_sensor_beacon)(input)?;
+
+    Ok((input, scans))
+}
+
+pub fn part_one(input: &str) -> Option<u32> {
+    // Extract sensor and beacon locations
+    let (_, scans): (&str, Vec<(Coordinate, Coordinate)>) = parse_sb_list(input).unwrap();
+    // Row to check
+    const ROW_REPORT: i32 = 2000000;
+    // Hold ranges that are in the row
+    let mut ranges: BTreeSet<(i32, i32)> = BTreeSet::new();
+    // Break points in the ranges
+    let mut break_points: BTreeSet<i32> = BTreeSet::new();
+
+    for (sensor, beacon) in scans {
+        // Calculate Manhattan distance
+        let x_dist: i32 = sensor.x - beacon.x;
+        let y_dist: i32 = sensor.y - beacon.y;
+        let manh_dist: i32 = (x_dist.abs() + y_dist.abs()) as i32;
+
+        // If the sensors coverage crosses our row of interest
+        if ((sensor.y - manh_dist)..=(sensor.y + manh_dist)).contains(&ROW_REPORT) {
+            // Calculate range of the sensors coverage along the row
+            let rad: i32 = manh_dist - (sensor.y).abs_diff(ROW_REPORT) as i32;
+            let mut start: i32 = sensor.x - rad - 1;
+            let mut end: i32 = sensor.x + rad;
+
+            // If there is a sensor and/or beacon in the range
+            if sensor.y == ROW_REPORT {
+                break_points.insert(sensor.x);
+            }
+            if beacon.y == ROW_REPORT {
+                break_points.insert(beacon.x);
+            }
+
+            // Merge the range so none of the ranges overlap
+            ranges.retain(|&(r_start, r_end)| {
+                // Whether to keep or remove the range to overwrite
+                let mut retain: bool = true;
+
+                // r_s |----| r_e
+                //      s |----| e
+                if (r_start..=r_end).contains(&start) && r_end < end {
+                    start = r_start;
+                    retain = false;
+                }
+                //  r_s |----| r_e
+                // s |----| e
+                else if (r_start..=r_end).contains(&end) && start < r_start {
+                    end = r_end;
+                    retain = false;
+                }
+                // r_s |---| r_e
+                // s |-------| e
+                else if start <= r_start && end >= r_end {
+                    retain = false;
+                }
+                // r_s |-------| r_e
+                //     s |---| e
+                else if start > r_start && end < r_end {
+                    start = r_start;
+                    end = r_end;
+                    retain = false;
+                }
+
+                retain
+            });
+
+            ranges.insert((start, end));
+        }
+    }
+
+    // Calculate length of ranges minus the number of spots taken by sensor/beacon
+    let spots_taken: u32 = ranges
+        .iter()
+        .map(|(start, end)| (end - start) as u32)
+        .sum::<u32>()
+        - break_points.len() as u32;
+
+    Some(spots_taken)
+}
+
+pub fn part_two(_input: &str) -> Option<u32> {
     None
 }
 
@@ -19,7 +138,7 @@ mod tests {
     #[test]
     fn test_part_one() {
         let input = advent_of_code::read_file("examples", 15);
-        assert_eq!(part_one(&input), None);
+        assert_eq!(part_one(&input), Some(26));
     }
 
     #[test]
