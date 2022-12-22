@@ -121,7 +121,73 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(spots_taken)
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
+// from rust discord: checked the boundaries of the diamonds optimized search
+pub fn part_two(input: &str) -> Option<u64> {
+    // Extract sensor and beacon locations
+    let (_, scans): (&str, Vec<(Coordinate, Coordinate)>) = parse_sb_list(input).unwrap();
+    // Max coordinate
+    const MAX_COORD: u32 = 4000000;
+
+    for i in 0..=MAX_COORD {
+        // Hold ranges that are in the row
+        let mut ranges: BTreeSet<(u32, u32)> = BTreeSet::new();
+
+        for (sensor, beacon) in &scans {
+            // Calculate Manhattan distance
+            let x_dist: i32 = sensor.x - beacon.x;
+            let y_dist: i32 = sensor.y - beacon.y;
+            let manh_dist: i32 = (x_dist.abs() + y_dist.abs()) as i32;
+
+            // If the sensors coverage crosses our row of interest
+            let min_check: u32 = (sensor.y - manh_dist).max(0) as u32;
+            let max_check: u32 = ((sensor.y + manh_dist) as u32).min(MAX_COORD);
+            if (min_check..=max_check).contains(&i) {
+                // Calculate range of the sensors coverage along the row
+                let rad: i32 = manh_dist - (sensor.y).abs_diff(i as i32) as i32;
+                let mut start: u32 = (sensor.x - rad - 1).max(0) as u32;
+                let mut end: u32 = ((sensor.x + rad) as u32).min(MAX_COORD);
+
+                // Merge the range so none of the ranges overlap
+                ranges.retain(|&(r_start, r_end)| {
+                    // Whether to keep or remove the range to overwrite
+                    let mut retain: bool = true;
+
+                    // If range needs to merge
+                    if (r_start..=r_end).contains(&start) && r_end <= end {
+                        start = r_start;
+                        retain = false;
+                    } else if (r_start..=r_end).contains(&end) && start <= r_start {
+                        end = r_end;
+                        retain = false;
+                    } else if start <= r_start && end >= r_end {
+                        retain = false;
+                    } else if start > r_start && end < r_end {
+                        start = r_start;
+                        end = r_end;
+                        retain = false;
+                    }
+
+                    retain
+                });
+
+                ranges.insert((start, end));
+            }
+        }
+
+        // If there's an open spot in the ranges
+        let r: (u32, u32) = *ranges.iter().next().unwrap();
+        // Open spot is somewhere in middle
+        if ranges.len() > 1 {
+            let x: u32 = r.1 + 1;
+            return Some((x as u64) * 4000000 + i as u64);
+        }
+        // Open spot is along the boundary
+        else if r.0 != 0 || r.1 != MAX_COORD {
+            let x: u32 = if r.0 != 0 { 0 } else { MAX_COORD };
+            return Some((x as u64) * 4000000 + i as u64);
+        }
+    }
+
     None
 }
 
@@ -144,6 +210,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 15);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(56000011));
     }
 }
