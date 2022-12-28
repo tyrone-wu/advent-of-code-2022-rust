@@ -116,24 +116,38 @@ fn traveling_salesman(
             time_left: time_remaining,
         };
 
-        // If the state of the valve (current valve, opened valves, time remaining) is in cache, retrieve the max pressure at that state; otherwise, calculate it
-        if let Some(cached_pressure) = cache_states.get(&valve_state) {
-            max_pressure = max_pressure.max(*cached_pressure);
-        } else {
-            max_pressure = max_pressure.max(
-                traveling_salesman(
-                    valves_info,
-                    paths,
-                    to_valve,
-                    new_opened,
-                    time_remaining,
-                    cache_states,
-                ) + cum_pressure,
-            );
-        }
+        // writing down notes if i ever look back on this; idk if this explanation is right tho bc this still feels a bit weird
+        // cache stores state of valve traversal - key: (current valve, opened valves, time remaining), value: max pressure
+        // when state happens to be in cache, we can retrieve the max pressure at that point without having to calculate rest of the sequence
+        // example: A -> B -> C -> D (current state) -> E -> F
+        //          A -> B -> C -> D (current state) -> F -> E
+        //          A -> C -> B -> D (current state) -> E -> F
+        // don't have to calculate rest of the sequence {D, F} IF the state is the same
 
-        // Cache max pressure at the state
-        cache_states.insert(valve_state, max_pressure);
+        // If the state of the valve is in cache, retrieve the max pressure at that state; otherwise, calculate it
+        if let Some(cached_pressure) = cache_states.get(&valve_state) {
+            if *cached_pressure > max_pressure {
+                max_pressure = *cached_pressure;
+                // Cache max pressure at the state
+                cache_states.insert(valve_state, max_pressure);
+            }
+        } else {
+            // Calculate rest of sequence
+            let pressure: u32 = traveling_salesman(
+                valves_info,
+                paths,
+                to_valve,
+                new_opened,
+                time_remaining,
+                cache_states,
+            );
+
+            if pressure + cum_pressure > max_pressure {
+                max_pressure = pressure + cum_pressure;
+                // Cache max pressure at the state
+                cache_states.insert(valve_state, max_pressure);
+            }
+        }
     }
 
     max_pressure
@@ -184,8 +198,67 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(max_pressure)
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<u32> {
+    // Parse valves
+    let (_, mut valves): (&str, Vec<Valve>) = parse_network(input).unwrap();
+    const TIME_LIMIT: u8 = 26;
+
+    // Get indicies of valves and relevant valves
+    let mut valve_indicies: HashMap<&str, usize> = HashMap::with_capacity(valves.len());
+    let mut irrelevant_valves: Vec<usize> = Vec::new();
+    for (i, valve) in valves.iter().enumerate() {
+        valve_indicies.insert(&valve.name, i);
+        if valve.name != "AA" && valve.rate == 0 {
+            irrelevant_valves.push(i);
+        }
+    }
+    // Get shortest paths from all pairs of nodes
+    let mut condensed_paths: Vec<Vec<u8>> = floyd_warshall(&valves, &valve_indicies);
+
+    // Reduce valves to only relevant valves
+    for i in irrelevant_valves.iter().rev() {
+        valves.remove(*i);
+        for path in condensed_paths.iter_mut().rev() {
+            path.remove(*i);
+        }
+        condensed_paths.remove(*i);
+    }
+
+    // Get starting position
+    let (start_valve, _): (usize, &Valve) = valves
+        .iter()
+        .enumerate()
+        .find(|(_, v)| v.name == "AA")
+        .unwrap();
+
+    // Cache
+    let mut cache_states: HashMap<ValveState, u32> = HashMap::new();
+
+    // thx hyper-neutrino! https://www.youtube.com/watch?v=bLMj50cpOug <3
+    // Iterate over every possible partitions
+    let max_partitions: u16 = ((1 << valves.len()) as u32 - 1) as u16;
+    let mut max_pressure: u32 = 0;
+    for i in 1..(max_partitions / 2) {
+        let me: u32 = traveling_salesman(
+            &valves,
+            &condensed_paths,
+            start_valve,
+            i,
+            TIME_LIMIT,
+            &mut cache_states,
+        );
+        let elephant: u32 = traveling_salesman(
+            &valves,
+            &condensed_paths,
+            start_valve,
+            max_partitions ^ i,
+            TIME_LIMIT,
+            &mut cache_states,
+        );
+        max_pressure = max_pressure.max(me + elephant);
+    }
+
+    Some(max_pressure)
 }
 
 fn main() {
@@ -207,6 +280,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = advent_of_code::read_file("examples", 16);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(1707));
     }
 }
