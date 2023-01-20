@@ -57,7 +57,7 @@ pub fn part_one(input: &str) -> Option<u32> {
         // Calculate Manhattan distance
         let x_dist: i32 = sensor.x - beacon.x;
         let y_dist: i32 = sensor.y - beacon.y;
-        let manh_dist: i32 = (x_dist.abs() + y_dist.abs()) as i32;
+        let manh_dist: i32 = x_dist.abs() + y_dist.abs();
 
         // If the sensors coverage crosses our row of interest
         if ((sensor.y - manh_dist)..=(sensor.y + manh_dist)).contains(&ROW_REPORT) {
@@ -136,7 +136,7 @@ pub fn part_two(input: &str) -> Option<u64> {
             // Calculate Manhattan distance
             let x_dist: i32 = sensor.x - beacon.x;
             let y_dist: i32 = sensor.y - beacon.y;
-            let manh_dist: i32 = (x_dist.abs() + y_dist.abs()) as i32;
+            let manh_dist: i32 = x_dist.abs() + y_dist.abs();
 
             // If the sensors coverage crosses our row of interest
             let min_check: u32 = (sensor.y - manh_dist).max(0) as u32;
