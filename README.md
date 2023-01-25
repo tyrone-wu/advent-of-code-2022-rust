@@ -6,6 +6,10 @@ Solutions for [Advent of Code 2022](https://adventofcode.com/2022) in [Rust](htt
 
 <!--- advent_readme_stars table --->
 
+<p align="center">
+<img src="./docs/YAAAAYAY.png">
+</p>
+
 ---
 
 ## Template setup
